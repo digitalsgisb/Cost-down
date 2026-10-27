@@ -55,7 +55,7 @@ Use the Activities tab with headers on row 4 and activity rows 5:204 (200 record
 
 J and K contain the annual plan and cumulative PIC actual on save. The adapter derives current totals from monthly fields on read. Existing legacy annual records remain readable. PIC must allocate legacy actual totals to the correct months when converting a record; the app does not guess a month.
 
-The archived Excel template is supplied as a starting point, not a runtime database. Convert a copy to Google Sheets, share it with your backend service account and run `node scripts/prepare-monthly.mjs` once for an unprepared sheet. It validates columns before creating extended headers.
+The original Excel archive is retained privately and is not required for this deployment. Use your existing prepared Google Sheet. For a new database, create an Activities tab with the exact A:T headers listed above, then run `node scripts/prepare-monthly.mjs` to validate columns and create the extended monthly headers.
 
 Pictures are optional: one JPEG, PNG or WebP up to 10 MB source size. A compressed JPEG copy of at most 45,000 characters is stored in column U and displayed as a thumbnail with an enlarged preview. Source originals are not retained.
 

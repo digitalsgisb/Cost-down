@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.env.local
+.env
+.npm-cache/
+data/
+test-results/
+playwright-report/
+credentials/
+*-service-account.json
+
+.tools/
+.env.*
+!.env.example
+# Local setup screenshots are not application assets.
+/*-review.png
+/google-*.png
+/oauth-*.png
+
+# Original business workbook retained privately, not part of runtime code.
+/Company_Cost_Down_Master_Template.xlsx
