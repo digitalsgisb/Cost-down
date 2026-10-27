@@ -1,10 +1,10 @@
 import {defaultCatalog} from '../../src/catalog.js';
 import { test,expect } from '@playwright/test';
 test.beforeEach(async({page})=>{await page.route('**/api/catalog',r=>r.fulfill({json:defaultCatalog}));});
-test('five modules, filters and PIC activity creation preserve savings workflow',async({page})=>{
+test('modules, filters and PIC activity creation count actual savings directly',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/');await expect(page.getByRole('heading',{name:'Cost Down Overview'})).toBeVisible();
- for(const [nav,title] of [['Departments','Department Performance'],['Activities','Cost Down Activities'],['Verification','Savings Verification'],['Progress','Activity Progress']]){
+ for(const [nav,title] of [['Departments','Department Performance'],['Activities','Cost Down Activities'],['Progress','Activity Progress']]){
   await page.getByRole('button',{name:nav,exact:true}).click();await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();
  }
  await page.getByRole('button',{name:'Activities',exact:true}).click();
@@ -21,18 +21,10 @@ test('five modules, filters and PIC activity creation preserve savings workflow'
  await page.getByLabel('Evidence Link (Google Drive / HTTPS URL)').fill('https://example.com/proof');
  await page.getByLabel('Oct Actual Saving (RM)').fill('500');
  await page.getByRole('button',{name:'Save Activity'}).click();
- await page.locator('.top-actions select').last().selectOption('HOD');
- await page.getByRole('button',{name:'Edit',exact:true}).click();
- await page.getByLabel('HOD Approval',{exact:true}).selectOption('Approved');
- await page.getByRole('button',{name:'Save Activity'}).click();
- await page.locator('.top-actions select').last().selectOption('Finance');
- await page.getByRole('button',{name:'Verification',exact:true}).click();
- await page.getByRole('button',{name:'Review',exact:true}).click();
- await page.getByLabel('Finance-Verified Amount (RM)').fill('400');
- await page.getByLabel('Finance Approval',{exact:true}).selectOption('Verified');
- await page.getByRole('button',{name:'Save Activity'}).click();
  await expect(page.getByRole('dialog')).toHaveCount(0);
- await expect(page.getByRole('table').getByText('Verified',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Verification',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('cell',{name:/RM\s*500/}).first()).toBeVisible();
+
 });
 
 test('mobile navigation and layout',async({page})=>{
@@ -100,7 +92,8 @@ test('Admin adds a PIC with two departments through the administration page',asy
  await page.getByLabel('Start Date',{exact:true}).fill('2026-01-01');
  await page.getByLabel('Attach activity picture').setInputFiles({name:'sample.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64')});
  await expect(page.getByRole('button',{name:'View activity picture',exact:true})).toBeVisible();
- await expect(page.getByLabel('Finance Approval',{exact:true})).toBeDisabled();
+ await expect(page.getByLabel('Finance Approval',{exact:true})).toHaveCount(0);
+ await expect(page.getByLabel('HOD Approval',{exact:true})).toHaveCount(0);
  await page.route('**/api/activities',async r=>r.fulfill({json:r.request().method()==='POST'?{...r.request().postDataJSON().activity,id:'2610RF01'}:[]}));
  await page.getByRole('button',{name:'Save Activity',exact:true}).click();
  await expect(page.getByRole('cell',{name:'Admin initiative',exact:false})).toBeVisible();
@@ -111,9 +104,13 @@ test('Admin adds a PIC with two departments through the administration page',asy
  await page.getByRole('button',{name:'Edit',exact:true}).click();
  await page.getByLabel('Cost down initiative *',{exact:true}).fill('Admin edited initiative');
  await page.getByLabel('Oct Actual Saving (RM)',{exact:true}).fill('25');
- await expect(page.getByLabel('Finance Approval',{exact:true})).toBeDisabled();
+ await expect(page.getByLabel('Finance Approval',{exact:true})).toHaveCount(0);
+ await expect(page.getByLabel('HOD Approval',{exact:true})).toHaveCount(0);
  await page.getByRole('button',{name:'Save Activity',exact:true}).click();
  await expect(page.getByRole('cell',{name:'Admin edited initiative',exact:false})).toBeVisible();
+ await page.getByRole('button',{name:'Overview',exact:true}).click();
+ await expect(page.locator('.stat').filter({has:page.getByText('Actual Saving',{exact:true})}).locator('strong')).toHaveText(/125/);
+
 
  let catalog=structuredClone(defaultCatalog);
  await page.route('**/api/admin/catalog',async r=>{const body=r.request().postDataJSON();catalog[body.kind].push({name:body.label,label:body.label,...(body.kind==='departments'?{code:body.code}:{})});await r.fulfill({json:catalog});});

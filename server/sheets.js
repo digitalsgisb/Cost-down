@@ -21,6 +21,7 @@ export class SheetsDatabase {
   return rows;
  }
  async save(next,previous,version){
+  next=monthlySavings(next);
   const rows=await this.read();const current=rows.find(r=>r.id===next.id);
   if(previous&&(!current||fingerprint(current)!==version)) throw Object.assign(Error('Activity changed in Google Sheets. Refresh and review before saving.'),{status:409});
   if(!previous&&current) throw Object.assign(Error('Activity ID already exists.'),{status:409});

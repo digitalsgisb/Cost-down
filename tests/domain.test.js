@@ -2,31 +2,30 @@ import {defaultCatalog} from '../src/catalog.js';
 import {updateCatalog} from '../server/catalog.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { monthlySavings,savingMonthCount,savingMonthActive,monthFields,nextActivityId,departmentCodes,validate,authorize,resetApprovals,overdue,fingerprint } from '../src/domain.js';
+import { monthlySavings,savingMonthCount,savingMonthActive,monthFields,nextActivityId,departmentCodes,validate,authorize,overdue,fingerprint } from '../src/domain.js';
 import { demo } from '../src/sample.js';
 import { SheetsDatabase,fromSerial,toSerial,headers } from '../server/sheets.js';
 const row={...demo[0],evidence:'https://example.com/evidence'};
-test('valid savings and invalid finance prerequisites',()=>{
+test('valid savings, progress and evidence validation',()=>{
  assert.deepEqual(validate(row),[]);
- assert.match(validate({...row,progress:101,plan:-1,hod:'Pending',evidence:''}).join(' '),/HOD approval/);
+ assert.match(validate({...row,progress:101,plan:-1,hod:'Pending',evidence:''}).join(' '),/Progress/);
  assert.match(validate({...row,start:'2026-02-30'}).join(' '),/Invalid start/);
  assert.match(validate({...row,evidence:'javascript:alert(1)'}).join(' '),/HTTPS/);
 });
-test('PIC owns its department and cannot alter approvals',()=>{
+test('PIC owns its activity and derived actual overrides the legacy verified field',()=>{
  const user={role:'PIC',pic:row.pic,department:row.department};
  assert.doesNotThrow(()=>authorize(user,{...row,reported:5},row));
- assert.throws(()=>authorize(user,{...row,verified:5},row),/assigned role/);
+ assert.equal(monthlySavings({...row,verified:5}).verified,row.reported);
  assert.throws(()=>authorize({...user,pic:'another'},row,row),/assigned role/);
  assert.throws(()=>authorize({...user,role:'Management'},row,row),/assigned role/);
 });
-test('HOD and Finance fields are isolated; owner edits invalidate verification',()=>{
- assert.doesNotThrow(()=>authorize({role:'HOD',department:row.department},{...row,hod:'Rejected'},row));
- assert.throws(()=>authorize({role:'HOD',department:'OIS'},row,row));
- assert.doesNotThrow(()=>authorize({role:'Finance'},{...row,verified:20},row));
- assert.throws(()=>authorize({role:'Finance'},{...row,plan:20},row));
- assert.equal(resetApprovals({...row,reported:20},row,'PIC').finance,'Pending');
- assert.equal(resetApprovals({...row,hod:'Rejected'},row,'HOD').verified,0);
+test('Actual entered is final and former approval roles cannot alter activities',()=>{
+ const r=monthlySavings({...row,reported:20,verified:1,hod:'Pending',finance:'Rejected',evidence:''});
+ assert.equal(r.verified,20);assert.equal(r.finance,'Verified');assert.deepEqual(validate(r),[]);
+ assert.throws(()=>authorize({role:'HOD',department:row.department},{...r,reported:99},r));
+ assert.throws(()=>authorize({role:'Finance'},{...r,reported:99},r));
 });
+
 test('overdue excludes completed and future activities',()=>{
  assert.equal(overdue({...row,target:'2026-10-25'},'2026-10-26'),true);
  assert.equal(overdue({...row,target:'2026-10-26'},'2026-10-26'),false);
@@ -66,12 +65,12 @@ test('PIC can create in both assigned departments but cannot move existing activ
  assert.throws(()=>authorize(user,{...activity,pic:'Other'}));
 });
 
-test('Admin creates activities for any department with approvals pending',()=>{
+test('Admin creates activities for any department without approval requirements',()=>{
  const activity={...row,department:'Prod Conv',pic:'Assigned PIC',hod:'Pending',finance:'Pending',verified:0};
  assert.doesNotThrow(()=>authorize({role:'Admin'},activity));
  assert.throws(()=>authorize({role:'Management'},activity));
- assert.throws(()=>authorize({role:'Admin'},{...activity,hod:'Approved'}));
- assert.throws(()=>authorize({role:'Admin'},{...activity,verified:1}));
+ assert.doesNotThrow(()=>authorize({role:'Admin'},monthlySavings(activity)));
+ assert.equal(monthlySavings({...activity,verified:1}).verified,activity.reported);
  assert.doesNotThrow(()=>authorize({role:'Admin'},activity,activity));
 });
 
@@ -102,7 +101,7 @@ test('Monthly amounts total correctly, retain blanks and reject invalid savings'
  assert.match(validate({...r,actualJan:-1}).join(' '),/actualJan/);
  assert.match(validate({...r,savingYear:1999}).join(' '),/Reporting year/);
  assert.throws(()=>authorize({role:'Finance'},{...r,actualFeb:99},r));
- assert.equal(resetApprovals({...r,actualFeb:99},r,'PIC').finance,'Pending');
+ assert.equal(monthlySavings({...r,actualFeb:99}).verified,monthlySavings({...r,actualFeb:99}).reported);
 });
 test('Monthly saving fields round-trip through the sheet without overwriting formulas',async()=>{
  let body;const input=monthlySavings({...row,id:'MONTHLY',savingYear:2026,start:'2026-01-01',planMonthly:125.5,actualJan:50,actualFeb:0,actualMar:''});
@@ -139,11 +138,11 @@ test('Savings count only start month through December in the reporting year',()=
  assert.match(validate({...base,start:''}).join(' '),/Start Date is required/);
 });
 
-test('Admin edits existing activities while owner and approval restrictions remain enforced',()=>{
+test('Admin edits existing activities while owner restrictions remain enforced',()=>{
  const updated={...row,item:'Updated initiative',department:'Prod Conv',pic:'New PIC',area:'Line 2',actualOct:250};
  assert.doesNotThrow(()=>authorize({role:'Admin'},updated,row));
- const saved=resetApprovals(updated,row,'Admin');assert.equal(saved.hod,'Pending');assert.equal(saved.finance,'Pending');assert.equal(saved.verified,0);
- for(const [key,value] of [['verified',123],['hod','Rejected'],['finance','Rejected'],['id','CHANGED']])assert.throws(()=>authorize({role:'Admin'},{...row,[key]:value},row));
+ const saved=monthlySavings(updated);assert.equal(saved.verified,saved.reported);
+ for(const [key,value] of [['id','CHANGED']])assert.throws(()=>authorize({role:'Admin'},{...row,[key]:value},row));
  const owner={role:'PIC',pic:row.pic,departments:[row.department]};
  assert.doesNotThrow(()=>authorize(owner,{...row,item:'Owner change'},row));
  assert.throws(()=>authorize({...owner,pic:'Other PIC'},{...row,item:'Forbidden'},row));

@@ -26,13 +26,13 @@ test('API authentication, workflow save, audit and conflict protection',async()=
   assert.equal((await post({activity:record},'unassigned')).status,403);
   const config=await(await fetch(base+'/api/config')).json();assert.equal(config.clientId,'google-client');assert.equal(config.users,undefined);
   const response=await post({activity:{...record,reported:12},version:fingerprint(record)});
-  assert.equal(response.status,200);const saved=await response.json();assert.equal(saved.finance,'Pending');assert.equal(saved.verified,0);assert.equal(writes,1);
+  assert.equal(response.status,200);const saved=await response.json();assert.equal(saved.finance,'Verified');assert.equal(saved.verified,12);assert.equal(writes,1);
   assert.match(await readFile(join(auditDir,'audit.jsonl'),'utf8'),/committed/);
   assert.equal((await post({activity:saved,version:'stale'})).status,409);
-  assert.equal((await post({activity:{...saved,finance:'Verified',verified:20},version:fingerprint(saved)})).status,403);
-  assert.equal((await post({activity:{...saved,finance:'Verified',verified:20},version:fingerprint(saved)},'finance')).status,400);
+  const normalized=await post({activity:{...saved,finance:'Rejected',verified:999},version:fingerprint(saved)});assert.equal(normalized.status,200);assert.equal((await normalized.json()).verified,12);
+  assert.equal((await post({activity:{...saved,finance:'Verified',verified:20},version:fingerprint(saved)},'finance')).status,403);
   const adminEdit=await post({activity:{...saved,item:'Admin corrected activity'},version:fingerprint(saved)},'admin');
-  assert.equal(adminEdit.status,200);const edited=await adminEdit.json();assert.equal(edited.item,'Admin corrected activity');assert.equal(edited.hod,'Pending');assert.equal(edited.finance,'Pending');assert.equal(edited.verified,0);
+  assert.equal(adminEdit.status,200);const edited=await adminEdit.json();assert.equal(edited.item,'Admin corrected activity');assert.equal(edited.finance,'Verified');assert.equal(edited.verified,12);
 
  }finally{await new Promise(r=>server.close(r));await rm(auditDir,{recursive:true,force:true});}
 });

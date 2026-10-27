@@ -20,24 +20,23 @@ Requires Node.js 22+. Open http://localhost:3001. Keep the Node server running. 
 
 ## Modules
 
-- Management Overview: annual plan, Finance-verified savings, achievement, gap, monthly chart and department scorecard.
+- Management Overview: annual plan, actual savings, achievement, gap, monthly chart and department scorecard.
 - Department Explorer: department comparison and initiative register.
 - PIC Activity Management: plans, monthly actual savings, dates, area, optional picture, progress and evidence.
-- Finance Savings Verification: PIC-reported versus verified amounts and approval workflow.
 - Progress Monitoring: overdue, high-priority, status and next-action tracking.
 - Admin: add PIC accounts, assign multiple departments, disable access, add departments/categories, edit display names and create/edit activities.
 
 ## Roles
 
-Bootstrap administrators are configured privately in `DASHBOARD_USERS`, keyed by verified Google subject IDs. Google ID tokens are validated server-side for audience, signature, issuer, expiry and verified email. An Admin can invite PICs by Google email; their first verified sign-in binds the invitation to their immutable subject ID. PICs edit activities matching their owner name and assigned departments. HOD handles department approval; Finance handles savings verification; Management is read-only.
+Bootstrap administrators are configured privately in `DASHBOARD_USERS`, keyed by verified Google subject IDs. Google ID tokens are validated server-side for audience, signature, issuer, expiry and verified email. An Admin can invite PICs by Google email; their first verified sign-in binds the invitation to their immutable subject ID. PICs edit activities matching their owner name and assigned departments. HOD, Finance and Management accounts have view-only access.
 
-Admin and PIC activity changes reset HOD/Finance approval and verified savings. Finance verification requires HOD approval and an HTTPS evidence link. Only Finance-verified savings count toward realized-savings KPIs. Activity IDs and reporting years remain fixed on edit.
+Actual savings entered by Admin or the assigned PIC count immediately toward realized-savings KPIs. No separate HOD or Finance approval is required; pictures and evidence links remain optional. Activity IDs and reporting years remain fixed on edit.
 
 ## Activity IDs and monthly savings
 
 New activity IDs are assigned on save: `YYMMCCnn`, using the Malaysian creation month, department code and next available sequence. The department codes shipped with the app are RF, CV, QM, RD, MM, MT, DT and OS. Admin can add departments with unique two-letter codes. Existing IDs are preserved.
 
-Enter Planned Saving (RM / month), Reporting Year, Start Date and actual amounts for Jan-Dec. Annual plan counts the project start month through December. For example, September start and RM1,000/month gives RM4,000 annual plan. Actual amounts before the start month are excluded; blank means unreported and zero means no savings. The year selector separates reporting years. Create a new activity for another year. Finance verification remains a cumulative annual amount.
+Enter Planned Saving (RM / month), Reporting Year, Start Date and actual amounts for Jan-Dec. Annual plan counts the project start month through December. For example, September start and RM1,000/month gives RM4,000 annual plan. Actual amounts before the start month are excluded; blank means unreported and zero means no savings. The year selector separates reporting years. Create a new activity for another year. Annual actual savings are the sum of eligible entered monthly amounts, with no approval gate.
 
 ## Google Sheets schema
 
@@ -53,7 +52,7 @@ Use the Activities tab with headers on row 4 and activity rows 5:204 (200 record
 | W:X | Planned Saving Monthly (RM), Reporting Year |
 | Y:AJ | Jan Actual Saving (RM) through Dec Actual Saving (RM) |
 
-J and K contain the annual plan and cumulative PIC actual on save. The adapter derives current totals from monthly fields on read. Existing legacy annual records remain readable. PIC must allocate legacy actual totals to the correct months when converting a record; the app does not guess a month.
+J and K contain the annual plan and cumulative actual on save. L mirrors K, and P/Q are maintained automatically for workbook compatibility; these legacy columns no longer represent a separate approval process. The adapter derives current totals from monthly fields on read. Existing legacy annual records remain readable. PIC must allocate legacy actual totals to the correct months when converting a record; the app does not guess a month.
 
 The original Excel archive is retained privately and is not required for this deployment. Use your existing prepared Google Sheet. For a new database, create an Activities tab with the exact A:T headers listed above, then run `node scripts/prepare-monthly.mjs` to validate columns and create the extended monthly headers.
 

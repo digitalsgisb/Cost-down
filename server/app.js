@@ -6,7 +6,7 @@ import { SheetsDatabase } from './sheets.js';
 import { createGoogleServices } from './google.js';
 import {catalogStore,updateCatalog} from './catalog.js';
 import { userStore, validatePic } from './users.js';
-import { authorize, resetApprovals, validate, fingerprint, today, nextActivityId, monthlySavings, monthFields } from '../src/domain.js';
+import { authorize, validate, fingerprint, today, nextActivityId, monthlySavings, monthFields } from '../src/domain.js';
 
 export function createApp(config={}, services=createGoogleServices(config)) {
  const app=express();app.disable('x-powered-by');app.use(express.json({limit:'128kb'}));
@@ -67,7 +67,7 @@ export function createApp(config={}, services=createGoogleServices(config)) {
    if(previous&&!previous.savingYear&&previous.reported>0&&activity.savingYear&&!monthFields.some(k=>Number(activity[k])>0))throw Object.assign(Error('Allocate the previous PIC total to the correct months before saving.'),{status:400});
    activity=monthlySavings(activity);
    authorize(req.user,activity,previous);
-   const nextRow={...resetApprovals(activity,previous,req.user.role),updated:today()};
+   const nextRow={...activity,updated:today()};
    const errors=validate(nextRow,catalog);
    if(!catalog.categories.some(c=>c.name===nextRow.category)&&(!previous||nextRow.category!==previous.category))errors.push('Select a valid category.');if(errors.length) throw Object.assign(Error(errors.join(' ')),{status:400});
    const operation=randomUUID();await audit({operation,state:'attempt',actor:req.user.id,role:req.user.role,before:previous,after:nextRow});
