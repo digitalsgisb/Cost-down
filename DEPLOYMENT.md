@@ -63,7 +63,7 @@ powershell -ExecutionPolicy Bypass -File scripts/start-dashboard.ps1
 
 Review `data/server-output.log` and `data/server-error.log`. Check `http://localhost:3001/api/health` for server readiness; `configured: true` confirms settings exist, while `check-google.mjs` checks actual Sheet access. A background process is not an auto-start service; after reboot, run the start script again or configure a Windows startup task under the same Windows account with the project folder as its working directory.
 
-For a new Sheet based on the original template, run `node scripts/prepare-monthly.mjs` once after configuration to reserve the monthly columns. The existing project Sheet has already been prepared. Do not reorder its A:AJ columns.
+For a new Sheet based on the original template, run `node scripts/prepare-monthly.mjs` once after configuration to reserve the monthly columns. The existing project Sheet has already been prepared. Do not reorder its A:AL columns. After updating for yearly / one-time plans, run `node scripts/prepare-monthly.mjs` to reserve AK:AL and expand the grid if necessary.
 
 ## Access from another computer
 

@@ -11,6 +11,6 @@ const base='/spreadsheets/'+encodeURIComponent(id);
 const metadata=await services.request(base+'?fields=sheets.properties');
 const sheet=metadata.sheets.find(s=>s.properties.title==='Activities')?.properties;
 if(!sheet)throw Error('Activities sheet not found.');
-if(sheet.gridProperties.columnCount<36)await services.request(base+':batchUpdate','POST',{requests:[{appendDimension:{sheetId:sheet.sheetId,dimension:'COLUMNS',length:36-sheet.gridProperties.columnCount}}]});
-await services.request(base+'/values:batchUpdate','POST',{valueInputOption:'RAW',data:[{range:"'Activities'!U4:AJ4",values:[['Activity Image','Area','Planned Saving Monthly (RM)','Reporting Year',...months.map(m=>m+' Actual Saving (RM)')]]}]});
+if(sheet.gridProperties.columnCount<38)await services.request(base+':batchUpdate','POST',{requests:[{appendDimension:{sheetId:sheet.sheetId,dimension:'COLUMNS',length:38-sheet.gridProperties.columnCount}}]});
+await services.request(base+'/values:batchUpdate','POST',{valueInputOption:'RAW',data:[{range:"'Activities'!U4:AL4",values:[['Activity Image','Area','Planned Saving Monthly (RM)','Reporting Year',...months.map(m=>m+' Actual Saving (RM)'),'Plan Frequency','Planned Saving Yearly (RM)']]}]});
 console.log(JSON.stringify({monthlyColumnsReady:true,activities:(await database.read()).length}));

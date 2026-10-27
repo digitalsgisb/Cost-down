@@ -78,3 +78,9 @@ node scripts/check-google.mjs
 Browser tests require Google Chrome. Automated tests mock Google identity and transport; `check-google.mjs` checks actual read access using private local configuration. Its optional `--verify-write` echoes the validated existing headers and does not create activity data.
 
 Public health/config endpoints expose readiness and the public Google client ID, not credentials or account assignments.
+
+## Monthly or yearly / one-time plan
+
+Choose Plan Frequency in the activity form. Monthly multiplies the monthly amount by active months from the project start month through December. Yearly / One-time counts the entered annual amount once, without multiplying by months. For example, a September start with RM1,000 gives RM4,000 for Monthly and RM1,000 for Yearly / One-time. Record actual savings in the month(s) achieved using the same Jan-Dec fields.
+
+AK stores Plan Frequency (`Monthly` or `Yearly`); AL stores Planned Saving Yearly (RM). Blank frequency on existing monthly records defaults to Monthly, preserving existing calculations. In the monthly chart a yearly plan appears once in the first active month; an earlier-year project uses January. Run `node scripts/prepare-monthly.mjs` when updating an existing Sheet to reserve the new AK:AL headers and expand the grid safely.

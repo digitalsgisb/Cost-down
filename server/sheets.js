@@ -9,14 +9,14 @@ export const headers=['Activity ID','Department','Initiative / Cost Down Item','
 export class SheetsDatabase {
  constructor(request,spreadsheetId){this.request=request;this.base=`/spreadsheets/${encodeURIComponent(spreadsheetId)}`;}
  async read(){
-  const data=await this.request(`${this.base}/values/${encodeURIComponent("'Activities'!A4:AJ204")}?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`);
+  const data=await this.request(`${this.base}/values/${encodeURIComponent("'Activities'!A4:AL204")}?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`);
   const [head,...values]=data.values||[];
   if(!head||headers.some((h,i)=>head[i]!==h)) throw Object.assign(Error('Activities sheet headers do not match the database template (A4:T4).'),{status:409});
   if((head[20]&&head[20]!=='Activity Image')||(!head[20]&&values.some(row=>row[20])))throw Object.assign(Error('Column U is already used. Reserve U for Activity Image before attaching pictures.'),{status:409});
   if((head[21]&&head[21]!=='Area')||(!head[21]&&values.some(row=>row[21])))throw Object.assign(Error('Column V is already used. Reserve V for Area before saving.'),{status:409});
-  const extra=['Planned Saving Monthly (RM)','Reporting Year',...months.map(m=>m+' Actual Saving (RM)')];
-  extra.forEach((title,i)=>{if((head[22+i]&&head[22+i]!==title)||(!head[22+i]&&values.some(row=>row[22+i]!==undefined&&row[22+i]!=='')))throw Object.assign(Error('Monthly savings columns W:AJ are already used. Check the sheet headers.'),{status:409});});
-  const rows=values.map((row,i)=>({...Object.fromEntries(fields.map((k,j)=>[k,dates.has(k)?fromSerial(row[j]):numbers.has(k)?Number(row[j])||0:['planMonthly','savingYear',...monthFields].includes(k)?(row[j]==null||row[j]===''?'':Number(row[j])):row[j]??''])),_row:i+5})).filter(r=>r.id).map(monthlySavings);
+  const extra=['Planned Saving Monthly (RM)','Reporting Year',...months.map(m=>m+' Actual Saving (RM)'),'Plan Frequency','Planned Saving Yearly (RM)'];
+  extra.forEach((title,i)=>{if((head[22+i]&&head[22+i]!==title)||(!head[22+i]&&values.some(row=>row[22+i]!==undefined&&row[22+i]!=='')))throw Object.assign(Error('Savings columns W:AL are already used. Check the sheet headers.'),{status:409});});
+  const rows=values.map((row,i)=>({...Object.fromEntries(fields.map((k,j)=>[k,dates.has(k)?fromSerial(row[j]):numbers.has(k)?Number(row[j])||0:['planMonthly','planAnnual','savingYear',...monthFields].includes(k)?(row[j]==null||row[j]===''?'':Number(row[j])):row[j]??''])),_row:i+5})).filter(r=>r.id).map(monthlySavings);
   if(new Set(rows.map(r=>r.id)).size!==rows.length) throw Object.assign(Error('Duplicate activity IDs in Google Sheets. Correct them before saving.'),{status:409});
   return rows;
  }
@@ -31,8 +31,8 @@ export class SheetsDatabase {
   // RAW treats all user strings as literal text. M:N are omitted entirely.
   await this.request(`${this.base}/values:batchUpdate`,'POST',{valueInputOption:'RAW',data:[
    {range:`'Activities'!A${row}:L${row}`,values:[fields.slice(0,12).map(value)]},
-   {range:`'Activities'!O${row}:AJ${row}`,values:[fields.slice(14).map(value)]},
-   {range:"'Activities'!U4:AJ4",values:[['Activity Image','Area','Planned Saving Monthly (RM)','Reporting Year',...months.map(m=>m+' Actual Saving (RM)')]]}
+   {range:`'Activities'!O${row}:AL${row}`,values:[fields.slice(14).map(value)]},
+   {range:"'Activities'!U4:AL4",values:[['Activity Image','Area','Planned Saving Monthly (RM)','Reporting Year',...months.map(m=>m+' Actual Saving (RM)'),'Plan Frequency','Planned Saving Yearly (RM)']]}
   ]});
   return {...Object.fromEntries(fields.map(k=>[k,next[k]??''])),_row:row};
  }

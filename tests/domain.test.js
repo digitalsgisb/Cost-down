@@ -2,7 +2,7 @@ import {defaultCatalog} from '../src/catalog.js';
 import {updateCatalog} from '../server/catalog.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { monthlySavings,savingMonthCount,savingMonthActive,monthFields,nextActivityId,departmentCodes,validate,authorize,overdue,fingerprint } from '../src/domain.js';
+import { monthlySavings,savingMonthCount,savingMonthActive,plannedSavingForMonth,monthFields,nextActivityId,departmentCodes,validate,authorize,overdue,fingerprint } from '../src/domain.js';
 import { demo } from '../src/sample.js';
 import { SheetsDatabase,fromSerial,toSerial,headers } from '../server/sheets.js';
 const row={...demo[0],evidence:'https://example.com/evidence'};
@@ -38,7 +38,7 @@ test('Sheets batch write protects formulas, limits capacity, detects stale and d
  await wb.save({...row,verified:4},row,fingerprint(row));
  assert.equal(calls.length,1);assert.match(calls[0][0],/values:batchUpdate/);
  assert.equal(calls[0][2].valueInputOption,'RAW');
- assert.deepEqual(calls[0][2].data.map(d=>d.range),["'Activities'!A5:L5","'Activities'!O5:AJ5","'Activities'!U4:AJ4"]);
+ assert.deepEqual(calls[0][2].data.map(d=>d.range),["'Activities'!A5:L5","'Activities'!O5:AL5","'Activities'!U4:AL4"]);
  await assert.rejects(wb.save(row,row,'stale'),/changed/);
  await assert.rejects(wb.save(row,null,null),/already exists/);
  wb.read=async()=>[{...row,_row:204}];
@@ -146,4 +146,26 @@ test('Admin edits existing activities while owner restrictions remain enforced',
  const owner={role:'PIC',pic:row.pic,departments:[row.department]};
  assert.doesNotThrow(()=>authorize(owner,{...row,item:'Owner change'},row));
  assert.throws(()=>authorize({...owner,pic:'Other PIC'},{...row,item:'Forbidden'},row));
+});
+
+test('Yearly one-time plans count once while monthly plans multiply active months',()=>{
+ const row={id:'YEAR',department:'Prod RF',item:'One-time saving',category:'Material',pic:'Owner',priority:'Medium',status:'Not Started',progress:0,start:'2026-09-01',savingYear:2026,planFrequency:'Yearly',planAnnual:1000,planMonthly:1000,actualSep:250,actualOct:750};
+ const yearly=monthlySavings(row);assert.equal(yearly.plan,1000);assert.equal(yearly.reported,1000);assert.equal(yearly.verified,1000);assert.equal(yearly.achievement,100);assert.deepEqual(validate(yearly),[]);
+ assert.equal(monthlySavings({...row,planFrequency:'Monthly'}).plan,4000);
+ assert.equal(plannedSavingForMonth(row,8),1000);assert.equal(plannedSavingForMonth(row,9),0);
+ assert.equal(monthsForPlan(row),yearly.plan);
+ assert.equal(monthlySavings({...row,start:'2025-09-01'}).plan,1000);
+ assert.equal(plannedSavingForMonth({...row,start:'2025-09-01'},0),1000);
+ assert.equal(monthlySavings({...row,start:'2027-01-01'}).plan,0);
+ assert.match(validate({...yearly,planAnnual:-1}).join(' '),/Yearly/);
+ assert.match(validate({...yearly,planFrequency:'Invalid'}).join(' '),/frequency/);
+ function monthsForPlan(r){return Array.from({length:12},(_,i)=>plannedSavingForMonth(r,i)).reduce((a,b)=>a+b,0);}
+});
+test('Yearly plan frequency and amount survive Google Sheets round trip',async()=>{
+ let body;const db=new SheetsDatabase(async(_url,_method,value)=>{body=value;return {};},'id');db.read=async()=>[];
+ const input=monthlySavings({...row,id:'YEARLY',start:'2026-09-01',savingYear:2026,planFrequency:'Yearly',planAnnual:2500,actualOct:500});
+ await db.save(input,null,null);
+ assert.deepEqual(body.data[1].values[0].slice(-2),['Yearly',2500]);
+ const header=[...headers,...body.data[2].values[0]];const values=[...body.data[0].values[0],'','',...body.data[1].values[0]];
+ const reader=new SheetsDatabase(async()=>({values:[header,values]}),'id');const [saved]=await reader.read();assert.equal(saved.planFrequency,'Yearly');assert.equal(saved.planAnnual,2500);assert.equal(saved.plan,2500);assert.equal(saved.reported,500);
 });

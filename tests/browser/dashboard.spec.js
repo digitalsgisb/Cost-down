@@ -89,6 +89,12 @@ test('Admin adds a PIC with two departments through the administration page',asy
  await expect(page.getByLabel('Jan Actual Saving (RM)',{exact:true})).toBeDisabled();
  await expect(page.getByLabel('Sep Actual Saving (RM)',{exact:true})).toBeEnabled();
  await expect(page.getByLabel('PIC-Reported Actual Total (RM)',{exact:true})).toHaveValue(/0/);
+ await page.getByLabel('Plan Frequency',{exact:true}).selectOption('Yearly');
+ await page.getByLabel('Planned Saving (RM / year - one-time)',{exact:true}).fill('1000');
+ await expect(page.getByLabel('Annual Planned Saving (RM)',{exact:true})).toHaveValue(/1,000/);
+ await page.getByLabel('Plan Frequency',{exact:true}).selectOption('Monthly');
+ await expect(page.getByLabel('Annual Planned Saving (RM)',{exact:true})).toHaveValue(/400/);
+
  await page.getByLabel('Start Date',{exact:true}).fill('2026-01-01');
  await page.getByLabel('Attach activity picture').setInputFiles({name:'sample.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64')});
  await expect(page.getByRole('button',{name:'View activity picture',exact:true})).toBeVisible();
